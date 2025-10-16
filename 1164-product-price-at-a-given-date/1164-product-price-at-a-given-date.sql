@@ -1,11 +1,10 @@
-select b.product_id, ifnull(a.new_price,10) as price
-from(
-    select 
-        product_id,
-        new_price,
-        rank() over (partition by product_id order by change_date desc) as rk
-    from Products
-    where change_date <= '2019-08-16'
-) a
-right join (select distinct product_id from Products) b 
-on a.product_id = b.product_id and a.rk = 1
+SELECT p.product_id,
+       COALESCE((
+         SELECT pr.new_price
+         FROM Products pr
+         WHERE pr.product_id = p.product_id
+           AND pr.change_date <= DATE('2019-08-16')
+         ORDER BY pr.change_date DESC
+         LIMIT 1
+       ), 10) AS price
+FROM (SELECT DISTINCT product_id FROM Products) AS p;
