@@ -2,7 +2,7 @@ select
     "Low Salary" as category,
     count(*) as accounts_count
 from Accounts
-where income <= 20000
+where income < 20000
 union
 select 
     "Average Salary" as category,
