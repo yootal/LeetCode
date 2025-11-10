@@ -1,32 +1,32 @@
-with p as (
-    select 
+WITH first_positive AS (
+    SELECT
         patient_id,
-        test_date,
-        result,
-        row_number() over (partition by patient_id order by test_date) as rn
-    from covid_tests
-    where result = 'Positive'
+        MIN(test_date) AS first_pos_date
+    FROM covid_tests
+    WHERE result = 'Positive'
+    GROUP BY patient_id
 ),
-n as (
-    select 
+first_negative_after AS (
+    SELECT
         c.patient_id,
-        c.test_date,
-        c.result,
-        row_number() over (partition by patient_id order by test_date) as rn
-    from covid_tests c
-    join p 
-        on p.patient_id = c.patient_id
-        and p.rn = 1
-    where c.result = 'Negative'
-        and c.test_date > p.test_date
+        MIN(c.test_date) AS first_neg_date
+    FROM covid_tests c
+    JOIN first_positive p
+      ON c.patient_id = p.patient_id
+     AND c.result = 'Negative'
+     AND c.test_date > p.first_pos_date
+    GROUP BY c.patient_id
 )
-
-select p.patient_id, pa.patient_name, pa.age, datediff(n.test_date, p.test_date) as recovery_time
-from p
-join n on 
-    p.patient_id = n.patient_id
-    and p.rn = 1 
-    and n.rn = 1
-join patients pa on p.patient_id = pa.patient_id  
-where datediff(n.test_date, p.test_date) > 0
-order by recovery_time asc, patient_name asc
+SELECT
+    p.patient_id,
+    pt.patient_name,
+    pt.age,
+    DATEDIFF(n.first_neg_date, p.first_pos_date) AS recovery_time
+FROM first_positive p
+JOIN first_negative_after n
+  ON p.patient_id = n.patient_id
+JOIN patients pt
+  ON pt.patient_id = p.patient_id
+ORDER BY
+    recovery_time ASC,
+    patient_name ASC;
